@@ -1,0 +1,49 @@
+# Build & cargo outputs
+/target/
+/dist/
+**/*.rs.bk
+
+# Keep local exploration docs / comparison screenshots out of the public repo
+/docs/
+
+# Optional local third-party prebuilt binaries (e.g. closed-source PNGOUT)
+third_party/bin/
+
+# OS, editor, and temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+.fleet/
+
+# Packaging & installer outputs
+*.dmg
+*.app/
+*.appex/
+*.exe
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.tar.gz
+*.zip
+*.nsi
+*.ico
+
+# Signing, secrets, and runtime caches/configs
+.env
+.env.*
+*.log
+*.p12
+*.cer
+*.mobileprovision
+*.key
+*.pem
+Results.db*
+ui-state.json
+settings.json
+*.orig
+*~imageoptim*

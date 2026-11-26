@@ -1,0 +1,20 @@
+[package]
+name = "imageoptim-pngquant"
+version = "3.0.3"
+edition.workspace = true
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+homepage.workspace = true
+description = "Vendored source build of pngquant 3.0.3 CLI for ImageOptim-Rust"
+
+[[bin]]
+name = "pngquant"
+path = "src/main.rs"
+
+[dependencies]
+imagequant-sys = { path = "../../third_party/src/pngquant/lib/imagequant-sys" }
+libc.workspace = true
+
+[build-dependencies]
+cc = "1"

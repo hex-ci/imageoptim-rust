@@ -1,0 +1,246 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label (defaults to tag name without leading v, or Cargo.toml version)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            target: aarch64-apple-darwin
+          - arch: x86_64
+            target: x86_64-apple-darwin
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Determine version
+        id: meta
+        run: |
+          RAW="${{ inputs.version }}"
+          if [ -z "$RAW" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            RAW="${GITHUB_REF_NAME#v}"
+          fi
+          if [ -z "$RAW" ]; then
+            RAW=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          fi
+          echo "version=${RAW:-0.1.0}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & package macOS bundle, ZIP, and DMG
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUNDLE_PNGOUT: "0"
+        run: |
+          ./scripts/package-macos.sh release "${{ matrix.target }}"
+          plutil -lint \
+            dist/ImageOptim-Rust.app/Contents/Info.plist \
+            dist/ImageOptim-Rust.app/Contents/PlugIns/ImageOptimize.appex/Contents/Info.plist
+          test ! -e dist/ImageOptim-Rust.app/Contents/Resources/tools/pngout
+          echo "=== Mach-O architectures ==="
+          file dist/ImageOptim-Rust.app/Contents/MacOS/ImageOptim-Rust
+          file dist/ImageOptim-Rust.app/Contents/PlugIns/ImageOptimize.appex/Contents/MacOS/ImageOptimize
+          file dist/ImageOptim-Rust.app/Contents/Resources/tools/*
+          echo "=== Linked libraries ==="
+          otool -L dist/ImageOptim-Rust.app/Contents/MacOS/ImageOptim-Rust
+
+      - name: Upload macOS ${{ matrix.arch }} release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos-${{ matrix.arch }}
+          path: |
+            dist/ImageOptim-Rust-*-macos-${{ matrix.arch }}.dmg
+            dist/ImageOptim-Rust-*-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  build-linux:
+    name: Linux (x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-linux-x86_64
+
+      - name: Install Linux build & packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            nasm \
+            pkg-config \
+            libasound2-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libudev-dev \
+            libgtk-3-dev \
+            libx11-dev \
+            dpkg \
+            file \
+            desktop-file-utils \
+            curl
+          curl -fsSL -o /tmp/appimagetool.AppImage \
+            https://github.com/AppImage/appimagetool/releases/latest/download/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+
+      - name: Determine version
+        id: meta
+        run: |
+          RAW="${{ inputs.version }}"
+          if [ -z "$RAW" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            RAW="${GITHUB_REF_NAME#v}"
+          fi
+          if [ -z "$RAW" ]; then
+            RAW=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          fi
+          echo "version=${RAW:-0.1.0}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & package Linux tar.gz, deb, and AppImage
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUNDLE_PNGOUT: "0"
+          APPIMAGETOOL: /tmp/appimagetool.AppImage
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          ./scripts/package-linux.sh release
+          test ! -e dist/ImageOptim-Rust.AppDir/usr/lib/imageoptim-rust/tools/pngout
+          dpkg-deb --info dist/imageoptim-rust_*.deb
+          desktop-file-validate dist/ImageOptim-Rust.AppDir/usr/share/applications/imageoptim-rust.desktop
+          ls -lh dist/*.tar.gz dist/*.deb dist/*.AppImage
+
+      - name: Upload Linux release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux-x86_64
+          path: |
+            dist/ImageOptim-Rust-*-linux-*.tar.gz
+            dist/ImageOptim-Rust-*-linux-*.AppImage
+            dist/imageoptim-rust_*.deb
+          if-no-files-found: error
+
+  build-windows:
+    name: Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-windows-x64
+
+      - name: Ensure NSIS is available
+        shell: pwsh
+        run: |
+          $NsisDir = "${env:ProgramFiles(x86)}\NSIS"
+          if (Test-Path (Join-Path $NsisDir "makensis.exe")) {
+            $NsisDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } elseif (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            choco install nsis --no-progress -y
+            if (Test-Path $NsisDir) {
+              $NsisDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            }
+          }
+
+      - name: Determine version
+        id: meta
+        shell: pwsh
+        run: |
+          $Raw = "${{ inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($Raw) -and "$env:GITHUB_REF_TYPE" -eq "tag") {
+            $Raw = $env:GITHUB_REF_NAME -replace '^v', ''
+          }
+          if ([string]::IsNullOrWhiteSpace($Raw)) {
+            $CargoToml = Get-Content -Path "Cargo.toml" -Raw
+            if ($CargoToml -match '(?m)^version\s*=\s*"([^"]+)"') {
+              $Raw = $Matches[1]
+            } else {
+              $Raw = "0.1.0"
+            }
+          }
+          "version=$Raw" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Build & package Windows ZIP and NSIS installer
+        shell: pwsh
+        env:
+          BUNDLE_PNGOUT: "0"
+        run: |
+          ./scripts/package-windows.ps1 -Profile release -Version "${{ steps.meta.outputs.version }}"
+          if (Test-Path dist\ImageOptim-Rust-windows-*\tools\pngout.exe) {
+            throw "pngout.exe must not be bundled in public builds"
+          }
+          Get-Item dist\ImageOptim-Rust-*.zip
+          Get-Item dist\ImageOptim-Rust-*-setup.exe
+
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows-x64
+          path: |
+            dist/ImageOptim-Rust-*-windows-*.zip
+            dist/ImageOptim-Rust-*-windows-*-setup.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish Release Assets
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        working-directory: release-assets
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload combined checksummed artifacts
+        if: (!startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: release-assets/*
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-assets/*
