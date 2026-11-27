@@ -518,7 +518,11 @@ fn build_jpegtran(
         src.join("rdswitch.c"),
         src.join("transupp.c"),
     ];
-    let objs = tc.compile(false, &srcs, &[src.to_path_buf()], &[], obj)?;
+    let mut includes = vec![src.to_path_buf()];
+    if windows && let Some(root) = obj.parent() {
+        includes.insert(0, root.join("mozjpeg-cfg"));
+    }
+    let objs = tc.compile(false, &srcs, &includes, &[], obj)?;
     let mut all = objs;
     all.extend(mozjpeg.iter().cloned());
     tc.link(

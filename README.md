@@ -115,7 +115,8 @@ Options verified against [`crates/app/src/cli.rs`](crates/app/src/cli.rs):
 ```sh
 cargo build --workspace --release
 
-# Run full test suite (requiring all vendored tools built from source)
+# Run full test suite (build workspace binaries first, then require all vendored tools)
+cargo build --workspace
 IMAGEOPTIM_REQUIRE_EXTERNAL_TOOLS=1 cargo test --workspace
 ```
 

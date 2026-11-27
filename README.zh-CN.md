@@ -115,7 +115,8 @@ ImageOptim-Rust --cli [OPTIONS] <PATHS...>
 ```sh
 cargo build --workspace --release
 
-# 运行完整测试套件（强制校验证明所有源码工具均成功编译可用）
+# 运行完整测试套件（先编译工作区工具，再强制校验所有源码工具可用）
+cargo build --workspace
 IMAGEOPTIM_REQUIRE_EXTERNAL_TOOLS=1 cargo test --workspace
 ```
 

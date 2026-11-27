@@ -19,6 +19,7 @@ Thank you for your interest in contributing to ImageOptim-Rust!
    ```
 2. Build and run all tests (verifying all vendored tools compile cleanly):
    ```sh
+   cargo build --workspace
    IMAGEOPTIM_REQUIRE_EXTERNAL_TOOLS=1 cargo test --workspace
    ```
 3. On macOS, you can also run the automated UI interaction smoke suite:

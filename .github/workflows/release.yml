@@ -39,6 +39,11 @@ jobs:
         with:
           key: release-${{ matrix.target }}
 
+      - name: Ensure macOS build dependencies
+        run: |
+          command -v cmake >/dev/null 2>&1 || brew install cmake
+          command -v nasm >/dev/null 2>&1 || brew install nasm
+
       - name: Determine version
         id: meta
         run: |
@@ -162,9 +167,16 @@ jobs:
         with:
           key: release-windows-x64
 
-      - name: Ensure NSIS is available
+      - name: Ensure Windows build & packaging dependencies (NASM & NSIS)
         shell: pwsh
         run: |
+          if (-not (Get-Command nasm -ErrorAction SilentlyContinue)) {
+            choco install nasm --no-progress -y
+          }
+          $NasmDir = "${env:ProgramFiles}\NASM"
+          if (Test-Path (Join-Path $NasmDir "nasm.exe")) {
+            $NasmDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
           $NsisDir = "${env:ProgramFiles(x86)}\NSIS"
           if (Test-Path (Join-Path $NsisDir "makensis.exe")) {
             $NsisDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
