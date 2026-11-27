@@ -265,7 +265,9 @@ unsigned TryOptimize(
 
   return 0;
 }
- #include <dispatch/dispatch.h>
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#endif
 // Use fast compression to check which PNG filter strategy gives the smallest
 // output. This allows to then do the slow and good compression only on that
 // filter type.
@@ -290,6 +292,7 @@ unsigned AutoChooseFilterStrategy(const std::vector<unsigned char>& image,
     windowsize = 4096;
   }
 
+#ifdef __APPLE__
   size_t sizes_data[numstrategies];
   size_t *sizes = sizes_data;
 
@@ -303,6 +306,18 @@ unsigned AutoChooseFilterStrategy(const std::vector<unsigned char>& image,
   });
 
   for (int i = 1; i < numstrategies; i++) {
+#else
+  std::vector<size_t> sizes(numstrategies, 0);
+  for (int i = 0; i < numstrategies; i++) {
+    std::vector<unsigned char> out;
+    unsigned error = TryOptimize(image, w, h, inputstate, bit16, keep_colortype,
+                                 origfile, strategies[i], false, windowsize, 0,
+                                 &out);
+    sizes[i] = error ? 0 : out.size();
+  }
+
+  for (int i = 0; i < numstrategies; i++) {
+#endif
     if (sizes[i]==0) continue;
     if (bestsize == 0 || sizes[i] < bestsize) {
       bestsize = sizes[i];

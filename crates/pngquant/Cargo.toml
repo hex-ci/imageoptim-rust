@@ -5,7 +5,6 @@ edition.workspace = true
 rust-version.workspace = true
 license = "GPL-3.0-or-later"
 repository.workspace = true
-homepage.workspace = true
 description = "Vendored source build of pngquant 3.0.3 CLI for ImageOptim-Rust"
 
 [[bin]]

@@ -10,14 +10,25 @@ fn main() {
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let src_root = manifest.join("../../third_party/src");
-    // OUT_DIR = target/<profile>/build/<pkg>-<hash>/out
+    // Resolve target/<profile> across both classic (`build/<pkg>-<hash>/out`)
+    // and fine-grained Cargo (`build/<pkg>/<hash>/out`) layouts.
     let profile_dir = out
         .ancestors()
-        .nth(3)
-        .expect("OUT_DIR layout")
-        .to_path_buf();
+        .find(|p| p.file_name().and_then(|n| n.to_str()) == Some("build"))
+        .and_then(Path::parent)
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| {
+            out.ancestors()
+                .nth(3)
+                .expect("OUT_DIR layout")
+                .to_path_buf()
+        });
     let tools_dir = profile_dir.join("tools");
     std::fs::create_dir_all(&tools_dir).unwrap();
+    println!(
+        "cargo:rustc-env=IMAGEOPTIM_BUILD_TOOLS_DIR={}",
+        tools_dir.display()
+    );
     let obj_root = out.join("obj");
     std::fs::create_dir_all(&obj_root).unwrap();
 
@@ -26,9 +37,9 @@ fn main() {
     let c_comp = cc::Build::new().get_compiler();
     let cxx_comp = cc::Build::new().cpp(true).get_compiler();
     let tc = Toolchain {
-        c: c_comp.path().to_path_buf(),
-        cxx: cxx_comp.path().to_path_buf(),
         msvc: c_comp.is_like_msvc(),
+        c: c_comp,
+        cxx: cxx_comp,
     };
 
     println!("cargo:rerun-if-changed=build.rs");
@@ -94,12 +105,34 @@ type JobFn =
     fn(&Path, &Path, &Toolchain, bool, &[PathBuf], &[PathBuf], &[PathBuf]) -> Result<(), String>;
 
 struct Toolchain {
-    c: PathBuf,
-    cxx: PathBuf,
+    c: cc::Tool,
+    cxx: cc::Tool,
     msvc: bool,
 }
 
 impl Toolchain {
+    fn tool_cmd(&self, cpp: bool) -> Command {
+        let tool = if cpp { &self.cxx } else { &self.c };
+        let mut cmd = Command::new(tool.path());
+        for (k, v) in tool.get_envs() {
+            cmd.env(k, v);
+        }
+        // Preserve cross-target / SDK / arch selection from cc without duplicating optimization flags.
+        let mut args = tool.args().iter().peekable();
+        while let Some(arg) = args.next() {
+            let s = arg.to_string_lossy();
+            if s.starts_with("--target=") || s.starts_with("--sysroot=") {
+                cmd.arg(arg);
+            } else if matches!(s.as_ref(), "--target" | "-arch" | "-isysroot" | "--sysroot") {
+                cmd.arg(arg);
+                if let Some(val) = args.next() {
+                    cmd.arg(val);
+                }
+            }
+        }
+        cmd
+    }
+
     fn compile(
         &self,
         cpp: bool,
@@ -128,7 +161,7 @@ impl Toolchain {
                 src.file_stem().unwrap().to_string_lossy(),
                 if self.msvc { "obj" } else { "o" }
             ));
-            let mut cmd = Command::new(if cpp { &self.cxx } else { &self.c });
+            let mut cmd = self.tool_cmd(cpp);
             if self.msvc {
                 cmd.arg("/nologo").arg("/O2").arg("/c");
                 if let Some(fi) = force_include {
@@ -161,13 +194,17 @@ impl Toolchain {
             }
             let out = cmd.output().map_err(|e| e.to_string())?;
             if !out.status.success() {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let msg = if stderr.trim().is_empty() {
+                    stdout
+                } else {
+                    stderr
+                };
                 return Err(format!(
                     "{}: {}",
                     src.display(),
-                    String::from_utf8_lossy(&out.stderr)
-                        .chars()
-                        .take(2000)
-                        .collect::<String>()
+                    msg.chars().take(2000).collect::<String>()
                 ));
             }
             objs.push(obj);
@@ -176,7 +213,7 @@ impl Toolchain {
     }
 
     fn link(&self, cpp: bool, objs: &[PathBuf], exe: &Path, libs: &[&str]) -> Result<(), String> {
-        let mut cmd = Command::new(if cpp { &self.cxx } else { &self.c });
+        let mut cmd = self.tool_cmd(cpp);
         if self.msvc {
             cmd.arg("/nologo").arg(format!("/Fe:{}", exe.display()));
             for o in objs {
@@ -197,10 +234,14 @@ impl Toolchain {
         }
         let out = cmd.output().map_err(|e| e.to_string())?;
         if !out.status.success() {
-            return Err(String::from_utf8_lossy(&out.stderr)
-                .chars()
-                .take(2000)
-                .collect());
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let msg = if stderr.trim().is_empty() {
+                stdout
+            } else {
+                stderr
+            };
+            return Err(msg.chars().take(2000).collect());
         }
         Ok(())
     }
@@ -244,6 +285,7 @@ fn build_gifsicle(src: &Path, obj: &Path, tc: &Toolchain, windows: bool) -> Resu
             "opttemplate",
             "gifx",
             "ungifwrt",
+            "strerror",
         ],
     );
     let objs = tc.compile_with(false, &sources, &includes, &defines, obj, Some("stdint.h"))?;

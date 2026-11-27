@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use eframe::egui;
 use egui::text::{LayoutJob, TextFormat, TextWrapping};
 use egui::{
@@ -692,7 +690,7 @@ impl App {
                     }
                     #[cfg(target_os = "macos")]
                     {
-                        let paths: Vec<PathBuf> = self
+                        let paths: Vec<std::path::PathBuf> = self
                             .selected_indices()
                             .into_iter()
                             .map(|i| self.rows[i].path.clone())

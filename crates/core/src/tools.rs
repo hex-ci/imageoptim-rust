@@ -133,9 +133,21 @@ pub(crate) fn find_external(binary: &str) -> Option<PathBuf> {
         dirs.push(dir.to_path_buf());
         dirs.push(dir.join("tools"));
         dirs.push(dir.join("../Resources/tools"));
-        // Cargo test runners live in `target/<profile>/deps/<test-bin>`:
-        dirs.push(dir.join("../tools"));
-        dirs.push(dir.join(".."));
+        // Cargo test runners live in `target/<profile>/deps/<test-bin>` (classic)
+        // or `target/<profile>/build/<pkg>/<hash>/out/<test-bin>` (fine-grained build-dir):
+        if dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n == "deps" || n == "out")
+        {
+            for anc in dir.ancestors().skip(1).take(5) {
+                dirs.push(anc.join("tools"));
+                dirs.push(anc.to_path_buf());
+            }
+        } else {
+            dirs.push(dir.join("../tools"));
+            dirs.push(dir.join(".."));
+        }
         // Closed-source PNGOUT is the sole vendor binary in `third_party/bin`.
         if binary == "pngout" {
             let plat = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
@@ -143,6 +155,17 @@ pub(crate) fn find_external(binary: &str) -> Option<PathBuf> {
             dirs.push(dir.join("../../third_party/bin"));
             dirs.push(dir.join("../../../third_party/bin").join(&plat));
             dirs.push(dir.join("../../../third_party/bin"));
+        }
+    }
+    if binary != "pngout"
+        && let Some(compiled) = option_env!("IMAGEOPTIM_BUILD_TOOLS_DIR")
+    {
+        let p = PathBuf::from(compiled);
+        if p.is_dir() {
+            if let Some(profile) = p.parent() {
+                dirs.push(profile.to_path_buf());
+            }
+            dirs.push(p);
         }
     }
     for dir in dirs {

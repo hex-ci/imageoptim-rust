@@ -80,6 +80,7 @@ pub struct App {
     qa_wait: u32,
     qa_done_logged: bool,
     qa_expect: Option<String>,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     quiet: bool,
     sort: Option<(SortKey, bool)>,
 

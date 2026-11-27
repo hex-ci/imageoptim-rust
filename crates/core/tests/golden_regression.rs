@@ -8,7 +8,9 @@ use image::{Delay, DynamicImage, Frame, ImageFormat, Luma, Rgb, Rgba, RgbaImage}
 use imageoptim_core::cache::ResultsCache;
 use imageoptim_core::engine;
 use imageoptim_core::filetype::{FileKind, is_apng, png_has_chunk};
-use imageoptim_core::optimize::{JobOutcome, optimize_bytes, optimize_path, save_output};
+#[cfg(unix)]
+use imageoptim_core::optimize::save_output;
+use imageoptim_core::optimize::{JobOutcome, optimize_bytes, optimize_path};
 use imageoptim_core::settings::Settings;
 use img_parts::Bytes;
 use img_parts::png::{Png, PngChunk};

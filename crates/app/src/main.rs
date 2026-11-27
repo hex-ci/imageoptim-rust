@@ -41,6 +41,7 @@ fn main() -> eframe::Result<()> {
     } else if let Some([x, y, w, h]) = app::saved_main_window() {
         viewport = viewport.with_inner_size([w, h]).with_position([x, y]);
     }
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut options = eframe::NativeOptions {
         viewport,
         ..Default::default()
