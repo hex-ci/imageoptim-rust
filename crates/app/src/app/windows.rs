@@ -27,11 +27,18 @@ impl App {
             egui::ViewportId::from_hash_of("prefs-window"),
             builder,
             |ui, _class| {
+                if let Some(r) = ui.ctx().input(|i| i.viewport().outer_rect) {
+                    self.prefs_live = Some(r);
+                }
+                if let Some(r) = ui.ctx().input(|i| i.viewport().inner_rect) {
+                    self.prefs_inner = Some(r);
+                }
                 if ui.ctx().input(|i| i.viewport().close_requested()) {
+                    self.prefs_saved =
+                        super::state::valid_window_rect(self.prefs_live, self.prefs_inner)
+                            .or(self.prefs_saved);
                     self.show_prefs = false;
                 }
-                self.prefs_live = ui.ctx().input(|i| i.viewport().outer_rect);
-                self.prefs_inner = ui.ctx().input(|i| i.viewport().inner_rect);
                 egui::CentralPanel::default()
                     .frame(egui::Frame::NONE)
                     .show(ui, |ui| {

@@ -19,7 +19,7 @@ use imageoptim_core::settings::Settings;
 
 use self::state::{
     Col, Evt, JobRequest, Preview, Row, RowStatus, ScanSlots, SortKey, UiState, UndoAction,
-    UndoEntry, col_from_name, col_name, col_range,
+    UndoEntry, col_from_name, col_name, col_range, valid_window_rect, write_ui_state_to,
 };
 use self::table::adjust_pair;
 use crate::format::{bytes, percent};
@@ -188,7 +188,9 @@ impl App {
             prefs_inner: None,
             main_saved: None,
             prefs_saved: None,
-            ui_write_at: Instant::now(),
+            ui_write_at: Instant::now()
+                .checked_sub(Duration::from_secs(1))
+                .unwrap_or_else(Instant::now),
             last_cursor: egui::CursorIcon::Default,
             qa_steps: std::env::var("IMAGEOPTIM_QA_INPUT")
                 .map(|v| v.split(';').map(str::to_owned).collect())
@@ -272,6 +274,58 @@ impl App {
 
     pub(super) fn is_busy(&self) -> bool {
         self.pending > 0 || self.active_scans > 0
+    }
+
+    fn capture_main_viewport(&mut self, ctx: &egui::Context) {
+        if let Some(rect) = ctx.input(|i| i.viewport().outer_rect) {
+            self.main_live = Some(rect);
+        }
+        if let Some(rect) = ctx.input(|i| i.viewport().inner_rect) {
+            self.main_inner = Some(rect);
+        }
+    }
+
+    fn build_ui_state_json(&self) -> String {
+        let ui_state = UiState {
+            show_size: self.show_size,
+            show_savings: self.show_savings,
+            show_original_size: self.show_original_size,
+            show_best_tool: self.show_best_tool,
+            col_original: self.col_original,
+            col_best: self.col_best,
+            col_order: self
+                .col_order
+                .iter()
+                .map(|c| col_name(*c).to_owned())
+                .collect(),
+            col_status: self.col_status,
+            col_file: self.col_file,
+            col_size: self.col_size,
+            col_savings: self.col_savings,
+            main_window: valid_window_rect(self.main_live, self.main_inner).or(self.main_saved),
+            prefs_window: valid_window_rect(self.prefs_live, self.prefs_inner).or(self.prefs_saved),
+        };
+        serde_json::to_string(&ui_state).unwrap_or_default()
+    }
+
+    fn flush_ui_state(&mut self, force: bool, ctx: Option<&egui::Context>) {
+        let json = self.build_ui_state_json();
+        if json == self.ui_state_json {
+            return;
+        }
+        if force || self.ui_write_at.elapsed() > Duration::from_millis(400) {
+            self.ui_state_json = json;
+            self.ui_write_at = Instant::now();
+            if !cfg!(test) {
+                let _ = write_ui_state_to(
+                    &Settings::config_dir().join("ui-state.json"),
+                    &self.ui_state_json,
+                );
+            }
+        } else if let Some(ctx) = ctx {
+            // Schedule one trailing flush after resize/move dragging stops.
+            ctx.request_repaint_after(Duration::from_millis(450));
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -1254,8 +1308,12 @@ impl eframe::App for App {
     }
 
     fn ui(&mut self, root: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = root.ctx().clone();
+        let ctx = &ctx;
+        self.capture_main_viewport(ctx);
         #[cfg(target_os = "macos")]
-        if root.ctx().input(|i| i.viewport().close_requested()) {
+        if ctx.input(|i| i.viewport().close_requested()) {
+            self.flush_ui_state(true, None);
             self.shutdown_workers();
             std::process::exit(0);
         }
@@ -1269,8 +1327,6 @@ impl eframe::App for App {
                 self.add_paths(opened);
             }
         }
-        let ctx = root.ctx().clone();
-        let ctx = &ctx;
         if !ctx.input(|i| i.pointer.primary_down()) {
             self.external_drag_started = false;
         }
@@ -1286,6 +1342,8 @@ impl eframe::App for App {
         }
         if self.was_busy && !busy {
             if self.quit_when_done {
+                self.capture_main_viewport(ctx);
+                self.flush_ui_state(true, None);
                 self.shutdown_workers();
                 #[cfg(target_os = "macos")]
                 std::process::exit(0);
@@ -1372,44 +1430,11 @@ impl eframe::App for App {
             crate::macos_open::set_queue_count(self.queue_count());
         }
 
-        let frame = |r: Option<egui::Rect>, inner: Option<egui::Rect>| {
-            let (r, inner) = (r?, inner?);
-            Some([r.min.x, r.min.y, inner.width(), inner.height()])
-        };
-        let ui_state = UiState {
-            show_size: self.show_size,
-            show_savings: self.show_savings,
-            show_original_size: self.show_original_size,
-            show_best_tool: self.show_best_tool,
-            col_original: self.col_original,
-            col_best: self.col_best,
-            col_order: self
-                .col_order
-                .iter()
-                .map(|c| col_name(*c).to_owned())
-                .collect(),
-            col_status: self.col_status,
-            col_file: self.col_file,
-            col_size: self.col_size,
-            col_savings: self.col_savings,
-            main_window: frame(self.main_live, self.main_inner),
-            prefs_window: frame(self.prefs_live, self.prefs_inner),
-        };
-        let json = serde_json::to_string(&ui_state).unwrap_or_default();
         let closing = ctx.input(|i| i.viewport().close_requested());
         if closing {
             self.shutdown_workers();
         }
-        if json != self.ui_state_json
-            && (closing || self.ui_write_at.elapsed() > Duration::from_millis(400))
-        {
-            self.ui_state_json = json;
-            self.ui_write_at = Instant::now();
-            let _ = std::fs::write(
-                Settings::config_dir().join("ui-state.json"),
-                &self.ui_state_json,
-            );
-        }
+        self.flush_ui_state(closing, Some(ctx));
 
         if !self.qa_steps.is_empty() {
             let cur = ctx.output(|o| o.cursor_icon);
@@ -1418,6 +1443,11 @@ impl eframe::App for App {
                 self.last_cursor = cur;
             }
         }
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.flush_ui_state(true, None);
+        self.shutdown_workers();
     }
 }
 
@@ -1646,6 +1676,36 @@ mod tests {
         assert_eq!(a.rows[0].optimized_size, Some(8_000));
         assert!(a.rows[0].optimized);
         assert_eq!(a.rows[0].revert.as_deref(), Some(backup_path.as_path()));
+
+        a.shutdown_workers();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ui_state_creates_missing_parent_dir_and_preserves_saved_window_when_minimized() {
+        let dir = std::env::temp_dir().join(format!("io-ui-state-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let state_path = dir.join("nested").join("ui-state.json");
+
+        let mut a = app();
+        a.main_saved = Some([120.0, 90.0, 820.0, 540.0]);
+        // Simulates minimized or pre-layout state: live rects absent, saved rect preserved.
+        let json = a.build_ui_state_json();
+        write_ui_state_to(&state_path, &json).unwrap();
+
+        let back: UiState = serde_json::from_str(&std::fs::read_to_string(&state_path).unwrap())
+            .expect("valid ui-state.json");
+        assert_eq!(back.main_window, Some([120.0, 90.0, 820.0, 540.0]));
+
+        // Zero or tiny rects are rejected cleanly.
+        let tiny = egui::Rect::from_min_size(pos2(10.0, 20.0), egui::vec2(0.0, 0.0));
+        assert_eq!(valid_window_rect(Some(tiny), Some(tiny)), None);
+        let valid_outer = egui::Rect::from_min_size(pos2(10.0, 20.0), egui::vec2(700.0, 440.0));
+        let valid_inner = egui::Rect::from_min_size(pos2(10.0, 48.0), egui::vec2(700.0, 412.0));
+        assert_eq!(
+            valid_window_rect(Some(valid_outer), Some(valid_inner)),
+            Some([10.0, 20.0, 700.0, 412.0])
+        );
 
         a.shutdown_workers();
         let _ = std::fs::remove_dir_all(&dir);

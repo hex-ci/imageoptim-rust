@@ -254,10 +254,31 @@ pub(super) fn col_name(col: Col) -> &'static str {
     }
 }
 
+/// Extracts a valid `[x, y, width, height]` window rect from egui viewport bounds.
+pub(super) fn valid_window_rect(
+    outer: Option<eframe::egui::Rect>,
+    inner: Option<eframe::egui::Rect>,
+) -> Option<[f32; 4]> {
+    let (outer, inner) = (outer?, inner?);
+    let [x, y, w, h] = [outer.min.x, outer.min.y, inner.width(), inner.height()];
+    (x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite() && w >= 100.0 && h >= 80.0)
+        .then_some([x, y, w, h])
+}
+
+/// Persists `ui-state.json`, creating parent configuration directories if absent.
+pub(super) fn write_ui_state_to(path: &std::path::Path, json: &str) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, json)
+}
+
 /// Reads the saved main-window frame for the initial viewport (`main.rs`).
 pub fn saved_main_window() -> Option<[f32; 4]> {
     let text = std::fs::read_to_string(Settings::config_dir().join("ui-state.json")).ok()?;
-    serde_json::from_str::<UiState>(&text).ok()?.main_window
+    let [x, y, w, h] = serde_json::from_str::<UiState>(&text).ok()?.main_window?;
+    (x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite() && w >= 100.0 && h >= 80.0)
+        .then_some([x, y, w, h])
 }
 
 pub(super) fn col_range(col: Col) -> Option<(f32, f32)> {
