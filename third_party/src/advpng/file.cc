@@ -376,7 +376,11 @@ string file_ext(const string& path) throw ()
  */
 int file_compare(const string& path1, const string& path2) throw ()
 {
+#ifdef _MSC_VER
+	return _stricmp(path1.c_str(), path2.c_str());
+#else
 	return strcasecmp(path1.c_str(), path2.c_str());
+#endif
 }
 
 /**

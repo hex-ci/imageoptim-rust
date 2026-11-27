@@ -49,7 +49,11 @@ void sncpyc(char* dst, size_t len, char src);
 void sncpyn(char* dst, size_t len, const char* src, size_t src_len);
 void sncat(char* dst, size_t len, const char* src);
 void sncatc(char* dst, size_t len, char src);
+#if defined(__GNUC__) || defined(__clang__)
 void sncatf(char* str, size_t count, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+#else
+void sncatf(char* str, size_t count, const char *fmt, ...);
+#endif
 const char* stoken(char* c, int* p, char* s, const char* sep, const char* ignore);
 void sskip(int* p, const char* s, const char* sep);
 adv_bool sglob(const char* s, const char* glob);

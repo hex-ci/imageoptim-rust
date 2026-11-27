@@ -5,11 +5,14 @@
 /* Compiler's inline keyword */
 #undef inline
 
-/* How to obtain function inlining. */
+/* How to obtain function inlining and thread-local storage. */
+#ifdef _MSC_VER
+#define INLINE __inline
+#define THREAD_LOCAL __declspec(thread)
+#else
 #define INLINE  __inline__ __attribute__((always_inline))
-
-/* How to obtain thread-local storage */
 #define THREAD_LOCAL  __thread
+#endif
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "mozjpeg"

@@ -51,9 +51,15 @@ adv_bool error_unsupported_get(void);
 
 void error_cat_set(const char* prefix, adv_bool mode);
 void error_reset(void);
+#if defined(__GNUC__) || defined(__clang__)
 void error_set(const char* error, ...) __attribute__((format(printf, 1, 2)));
 void error_unsupported_set(const char* error, ...) __attribute__((format(printf, 1, 2)));
 void error_nolog_set(const char* error, ...) __attribute__((format(printf, 1, 2)));
+#else
+void error_set(const char* error, ...);
+void error_unsupported_set(const char* error, ...);
+void error_nolog_set(const char* error, ...);
+#endif
 
 /*@}*/
 

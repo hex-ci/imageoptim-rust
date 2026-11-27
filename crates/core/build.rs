@@ -163,12 +163,18 @@ impl Toolchain {
             ));
             let mut cmd = self.tool_cmd(cpp);
             if self.msvc {
-                cmd.arg("/nologo").arg("/O2").arg("/c");
+                cmd.arg("/nologo")
+                    .arg("/O2")
+                    .arg("/c")
+                    .arg("/DWIN32")
+                    .arg("/D_CRT_SECURE_NO_WARNINGS");
                 if let Some(fi) = force_include {
                     cmd.arg(format!("/FI{fi}"));
                 }
                 if cpp {
                     cmd.arg("/std:c++14").arg("/EHsc");
+                } else {
+                    cmd.arg("/std:c11");
                 }
                 for inc in includes {
                     cmd.arg(format!("/I{}", inc.display()));
@@ -196,15 +202,16 @@ impl Toolchain {
             if !out.status.success() {
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 let stdout = String::from_utf8_lossy(&out.stdout);
-                let msg = if stderr.trim().is_empty() {
-                    stdout
-                } else {
-                    stderr
-                };
+                let combined = format!("{stderr}\n{stdout}");
+                let flat: Vec<&str> = combined
+                    .lines()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty())
+                    .collect();
                 return Err(format!(
                     "{}: {}",
                     src.display(),
-                    msg.chars().take(2000).collect::<String>()
+                    flat.join(" | ").chars().take(1500).collect::<String>()
                 ));
             }
             objs.push(obj);

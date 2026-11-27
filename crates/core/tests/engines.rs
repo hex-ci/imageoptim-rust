@@ -364,12 +364,12 @@ fn save_preserves_custom_xattrs_and_strips_unwanted() {
     let original = std::fs::read("tests/fixtures/unoptimized.png").unwrap();
     std::fs::write(&path, &original).unwrap();
     xattr::set(&path, "user.imageoptim", b"custom-keep").unwrap();
-    xattr::set(
+    let has_apple_xattr = xattr::set(
         &path,
         "com.apple.metadata:kMDItemWhereFroms",
         b"https://example.com",
     )
-    .ok();
+    .is_ok();
 
     let settings = Settings {
         preserve_permissions: false,
@@ -382,27 +382,33 @@ fn save_preserves_custom_xattrs_and_strips_unwanted() {
         xattr::get(&path, "user.imageoptim").unwrap().as_deref(),
         Some(b"custom-keep".as_slice())
     );
-    assert_eq!(
-        xattr::get(&path, "com.apple.metadata:kMDItemWhereFroms").unwrap(),
-        None
-    );
+    if has_apple_xattr {
+        assert_eq!(
+            xattr::get(&path, "com.apple.metadata:kMDItemWhereFroms").unwrap(),
+            None
+        );
+    }
 
     // Also verify in-place overwrite (`preserve_permissions: true`) strips unwanted xattrs.
-    xattr::set(
-        &path,
-        "com.apple.metadata:kMDItemWhereFroms",
-        b"https://example.com",
-    )
-    .ok();
+    if has_apple_xattr {
+        xattr::set(
+            &path,
+            "com.apple.metadata:kMDItemWhereFroms",
+            b"https://example.com",
+        )
+        .unwrap();
+    }
     let inplace = Settings {
         preserve_permissions: true,
         ..Settings::default()
     };
     let _ = save_output(&path, &optimized, &inplace).unwrap();
-    assert_eq!(
-        xattr::get(&path, "com.apple.metadata:kMDItemWhereFroms").unwrap(),
-        None
-    );
+    if has_apple_xattr {
+        assert_eq!(
+            xattr::get(&path, "com.apple.metadata:kMDItemWhereFroms").unwrap(),
+            None
+        );
+    }
     assert_eq!(
         xattr::get(&path, "user.imageoptim").unwrap().as_deref(),
         Some(b"custom-keep".as_slice())
