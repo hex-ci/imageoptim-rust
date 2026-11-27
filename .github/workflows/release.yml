@@ -266,10 +266,10 @@ jobs:
 
           sed "s|{{VERSION}}|${VERSION}|g" .github/release-notes.md > release-notes.md
           echo "" >> release-notes.md
-          echo "## 本次变更" >> release-notes.md
+          echo "## What's Changed / 本次变更" >> release-notes.md
           echo "" >> release-notes.md
           if [ "$REF_TYPE" = "tag" ] && prev="$(git describe --tags --abbrev=0 --match 'v*' "${REF_NAME}^" 2>/dev/null)"; then
-            echo "自 ${prev} 起：" >> release-notes.md
+            echo "Since ${prev} / 自 ${prev} 起：" >> release-notes.md
             echo "" >> release-notes.md
             git log --no-merges --pretty=format:'- %s (%h)' "${prev}..${REF_NAME}" >> release-notes.md
           elif [ "$REF_TYPE" = "tag" ]; then
