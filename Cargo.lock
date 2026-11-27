@@ -1911,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "imageoptim-app"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -1938,7 +1938,7 @@ dependencies = [
 
 [[package]]
 name = "imageoptim-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "cc",

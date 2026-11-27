@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-27
+
+### Fixed
+- Persist `ui-state.json` window geometry reliably across launches: create missing configuration directories on write, flush viewport state before macOS early window/auto-quit exits and in `on_exit`, preserve saved window rects when minimized, and schedule a trailing flush after drag/resize stops.
+
 ## [0.1.0] - 2026-11-27
 
 ### Added
