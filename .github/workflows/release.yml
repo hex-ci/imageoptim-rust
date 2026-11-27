@@ -240,7 +240,8 @@ jobs:
       - name: Generate SHA-256 checksums
         working-directory: release-assets
         run: |
-          sha256sum * > SHA256SUMS.txt
+          sha256sum * > /tmp/SHA256SUMS.txt
+          mv /tmp/SHA256SUMS.txt SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Upload combined checksummed artifacts

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-27
+
 ### Added
 - Initial public open-source release of **ImageOptim-Rust** (`hex-ci/imageoptim-rust`) under `GPL-3.0-or-later`.
 - Self-contained vendored source builds for OxiPNG, ZopfliPNG, pngquant `3.0.3`, AdvPNG, PNGCrush, MozJPEG, Jpegoptim, Guetzli, Gifsicle, SVGO (`rquickjs`), and svgcleaner.

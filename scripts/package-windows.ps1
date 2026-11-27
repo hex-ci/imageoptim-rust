@@ -136,6 +136,7 @@ Write-Host "Removed ImageOptim-Rust Explorer right-click menu entries."
     $NsiPath = Join-Path $Root "dist\installer.nsi"
     $SetupOut = Join-Path $Root "dist\ImageOptim-Rust-$Version-windows-$ArchSuffix-setup.exe"
     $NsiScript = @"
+Unicode True
 !include "MUI2.nsh"
 Name "ImageOptim-Rust $Version"
 OutFile "$SetupOut"
@@ -164,28 +165,28 @@ Section "Install"
 
   ; Explorer right-click menu for PNG, JPEG, GIF, SVG and folders (HKCU, no UAC needed)
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%1`""
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%1"'
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%1`""
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%1"'
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%1`""
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%1"'
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.gif\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.gif\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.gif\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%1`""
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.gif\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.gif\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%1"'
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.svg\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.svg\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.svg\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%1`""
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.svg\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.svg\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%1"'
   WriteRegStr HKCU "Software\Classes\Directory\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"
-  WriteRegStr HKCU "Software\Classes\Directory\shell\ImageOptim-Rust" "Icon" "`"`$INSTDIR\ImageOptim-Rust.ico`""
-  WriteRegStr HKCU "Software\Classes\Directory\shell\ImageOptim-Rust\command" "" "`"`$INSTDIR\ImageOptim-Rust.exe`" `"`%V`""
+  WriteRegStr HKCU "Software\Classes\Directory\shell\ImageOptim-Rust" "Icon" '"`$INSTDIR\ImageOptim-Rust.ico"'
+  WriteRegStr HKCU "Software\Classes\Directory\shell\ImageOptim-Rust\command" "" '"`$INSTDIR\ImageOptim-Rust.exe" "%V"'
 
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "DisplayName" "ImageOptim-Rust $Version"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "Publisher" "Hex"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "URLInfoAbout" "https://github.com/hex-ci/imageoptim-rust"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "UninstallString" "`"`$INSTDIR\Uninstall.exe`""
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "UninstallString" '"`$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "DisplayIcon" "`$INSTDIR\ImageOptim-Rust.ico"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ImageOptim-Rust" "DisplayVersion" "$Version"
 SectionEnd
