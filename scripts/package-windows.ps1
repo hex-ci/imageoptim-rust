@@ -76,27 +76,9 @@ try {
         Copy-Item -Path $PngquantExe -Destination (Join-Path $ToolsDir "pngquant.exe") -Force
     }
 
-    # Generate a valid Vista+ PNG-backed ImageOptim-Rust.ico from crates/app/assets/app-icon.png.
-    $PngBytes = [System.IO.File]::ReadAllBytes((Join-Path $Root "crates\app\assets\app-icon.png"))
+    # Copy canonical multi-resolution uncompressed BMP-DIB icon for Explorer and NSIS MUI2.
     $IcoPath = Join-Path $Stage "ImageOptim-Rust.ico"
-    $Stream = [System.IO.File]::Open($IcoPath, [System.IO.FileMode]::Create)
-    $Writer = New-Object System.IO.BinaryWriter($Stream)
-    # ICONDIR: Reserved=0, Type=1 (ICO), Count=1
-    $Writer.Write([UInt16]0)
-    $Writer.Write([UInt16]1)
-    $Writer.Write([UInt16]1)
-    # ICONDIRENTRY: 256x256 (0,0), ColorCount=0, Reserved=0, Planes=1, BitCount=32
-    $Writer.Write([Byte]0)
-    $Writer.Write([Byte]0)
-    $Writer.Write([Byte]0)
-    $Writer.Write([Byte]0)
-    $Writer.Write([UInt16]1)
-    $Writer.Write([UInt16]32)
-    $Writer.Write([UInt32]$PngBytes.Length)
-    $Writer.Write([UInt32]22)
-    $Writer.Write($PngBytes)
-    $Writer.Close()
-    $Stream.Close()
+    Copy-Item (Join-Path $Root "crates\app\assets\app-icon.ico") $IcoPath -Force
 
     # Per-user Explorer context menu installer (no Administrator UAC prompt needed).
     $InstallMenu = @'
@@ -142,7 +124,8 @@ Name "ImageOptim-Rust $Version"
 OutFile "$SetupOut"
 InstallDir "`$LOCALAPPDATA\Programs\ImageOptim-Rust"
 RequestExecutionLevel user
-!insertmacro MUI_ICON "$Stage\ImageOptim-Rust.ico"
+!define MUI_ICON "$Stage\ImageOptim-Rust.ico"
+!define MUI_UNICON "$Stage\ImageOptim-Rust.ico"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -156,12 +139,11 @@ Section "Install"
   File "$Stage\ImageOptim-Rust.ico"
   File "$Stage\install-context-menu.ps1"
   File "$Stage\uninstall-context-menu.ps1"
+  CreateDirectory "`$SMPROGRAMS\ImageOptim-Rust"
+  CreateShortcut "`$SMPROGRAMS\ImageOptim-Rust\ImageOptim-Rust.lnk" "`$INSTDIR\ImageOptim-Rust.exe" "" "`$INSTDIR\ImageOptim-Rust.ico"
   SetOutPath "`$INSTDIR\tools"
   File /nonfatal "$Stage\tools\*.exe"
   WriteUninstaller "`$INSTDIR\Uninstall.exe"
-
-  CreateDirectory "`$SMPROGRAMS\ImageOptim-Rust"
-  CreateShortcut "`$SMPROGRAMS\ImageOptim-Rust\ImageOptim-Rust.lnk" "`$INSTDIR\ImageOptim-Rust.exe" "" "`$INSTDIR\ImageOptim-Rust.ico"
 
   ; Explorer right-click menu for PNG, JPEG, GIF, SVG and folders (HKCU, no UAC needed)
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.png\shell\ImageOptim-Rust" "" "Optimize with ImageOptim-Rust"

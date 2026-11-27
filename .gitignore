@@ -32,6 +32,7 @@ Thumbs.db
 *.zip
 *.nsi
 *.ico
+!crates/app/assets/app-icon.ico
 
 # Signing, secrets, and runtime caches/configs
 .env
