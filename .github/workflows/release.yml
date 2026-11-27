@@ -231,6 +231,10 @@ jobs:
     needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -244,6 +248,37 @@ jobs:
           mv /tmp/SHA256SUMS.txt SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Generate release notes
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="$INPUT_VERSION"
+          if [ -z "$VERSION" ] && [ "$REF_TYPE" = "tag" ]; then
+            VERSION="${REF_NAME#v}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          fi
+          VERSION="${VERSION:-0.1.0}"
+
+          sed "s|{{VERSION}}|${VERSION}|g" .github/release-notes.md > release-notes.md
+          echo "" >> release-notes.md
+          echo "## 本次变更" >> release-notes.md
+          echo "" >> release-notes.md
+          if [ "$REF_TYPE" = "tag" ] && prev="$(git describe --tags --abbrev=0 --match 'v*' "${REF_NAME}^" 2>/dev/null)"; then
+            echo "自 ${prev} 起：" >> release-notes.md
+            echo "" >> release-notes.md
+            git log --no-merges --pretty=format:'- %s (%h)' "${prev}..${REF_NAME}" >> release-notes.md
+          elif [ "$REF_TYPE" = "tag" ]; then
+            git log --no-merges --pretty=format:'- %s (%h)' "${REF_NAME}" >> release-notes.md
+          else
+            git log -n 20 --no-merges --pretty=format:'- %s (%h)' HEAD >> release-notes.md
+          fi
+          echo "" >> release-notes.md
+
       - name: Upload combined checksummed artifacts
         if: (!startsWith(github.ref, 'refs/tags/v'))
         uses: actions/upload-artifact@v4
@@ -255,5 +290,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          name: ImageOptim-Rust ${{ github.ref_name }}
+          body_path: release-notes.md
           files: release-assets/*
