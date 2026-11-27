@@ -1439,7 +1439,7 @@ static int copy_idat = 0; /* = 1 to simply copy the IDAT chunk data */
 #  define CLOCKS_PER_SEC 1000
 #endif
 
-#ifdef __STDC__
+#if defined(__STDC__) || defined(_MSC_VER)
 #  define TIME_T clock_t
 #else
 #  if CLOCKS_PER_SEC <= 100

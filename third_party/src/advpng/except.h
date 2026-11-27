@@ -131,6 +131,12 @@ public:
 	}
 };
 
+#ifdef _MSC_VER
+#ifndef __PRETTY_FUNCTION__
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+#endif
+
 #define error() \
 	error(__PRETTY_FUNCTION__, __FILE__, __LINE__)
 

@@ -498,8 +498,12 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
     imageline = gif_imageline(gfi, pos);
   }
 
-  Gif_YUVColor col[gfcm->ncol];
-  for(int i=0; i < gfcm->ncol; i++) {
+  int ncol = (gfcm && gfcm->ncol > 0) ? gfcm->ncol : 0;
+  Gif_YUVColor col_stack[256];
+  Gif_YUVColor *col = (ncol <= 256) ? col_stack : Gif_NewArray(Gif_YUVColor, ncol);
+  if (!col)
+    goto error;
+  for(int i=0; i < ncol; i++) {
     double R = rgb8_to_linear(gfcm->col[i].gfc_red);
     double G = rgb8_to_linear(gfcm->col[i].gfc_green);
     double B = rgb8_to_linear(gfcm->col[i].gfc_blue);
@@ -747,11 +751,15 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
   buf[bufpos] = 0;
   gifputblock(buf, bufpos + 1, grr);
 
+  if (col != col_stack)
+    Gif_DeleteArray(col);
   if (buf != stack_buffer)
     Gif_DeleteArray(buf);
   return 1;
 
  error:
+  if (col != col_stack)
+    Gif_DeleteArray(col);
   if (buf != stack_buffer)
     Gif_DeleteArray(buf);
   return 0;

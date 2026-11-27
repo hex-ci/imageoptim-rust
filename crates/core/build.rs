@@ -62,6 +62,11 @@ fn main() {
         ("advpng", build_advpng),
     ];
     for (name, job) in jobs {
+        if windows && name == "jpegoptim" {
+            // Upstream jpegoptim CLI requires POSIX <dirent.h>; Rust `engine::jpegoptim`
+            // via turbojpeg handles JPEG optimization directly on all platforms.
+            continue;
+        }
         let src = if name == "jpegtran" {
             src_root.join("mozjpeg")
         } else {
@@ -243,12 +248,13 @@ impl Toolchain {
         if !out.status.success() {
             let stderr = String::from_utf8_lossy(&out.stderr);
             let stdout = String::from_utf8_lossy(&out.stdout);
-            let msg = if stderr.trim().is_empty() {
-                stdout
-            } else {
-                stderr
-            };
-            return Err(msg.chars().take(2000).collect());
+            let combined = format!("{stderr}\n{stdout}");
+            let flat: Vec<&str> = combined
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .collect();
+            return Err(flat.join(" | ").chars().take(1500).collect());
         }
         Ok(())
     }
@@ -658,7 +664,10 @@ fn build_advpng(
         "USE_7Z=1",
         "USE_LZMA=1",
     ];
-    if !windows {
+    if windows {
+        adefs.push("__WIN32__");
+        adefs.push("HAVE_SYS_UTIME_H=1");
+    } else {
         adefs.push("HAVE_UNISTD_H");
         adefs.push("HAVE_UTIME_H");
     }

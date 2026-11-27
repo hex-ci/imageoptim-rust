@@ -107,6 +107,13 @@ extern int optind, opterr, optopt;
 #include <sys/utime.h>
 #endif
 
+#if defined(_MSC_VER)
+#include <direct.h>
+#ifndef S_ISDIR
+#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+#endif
+
 #if defined(__MSDOS__) || defined(__WIN32__)
 #define HAVE_LONG_FNAME 0
 #define DIR_SEP ';'
