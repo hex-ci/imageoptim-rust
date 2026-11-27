@@ -109,6 +109,13 @@ extern int optind, opterr, optopt;
 
 #if defined(_MSC_VER)
 #include <direct.h>
+#include <io.h>
+#ifndef F_OK
+#define F_OK 0
+#endif
+#ifndef access
+#define access _access
+#endif
 #ifndef S_ISDIR
 #define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
 #endif

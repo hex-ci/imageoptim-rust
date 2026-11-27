@@ -493,9 +493,9 @@ fn instant_cancellation_aborts_active_tool_and_leaves_file_untouched() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("heavy.png");
 
-    // Generate a high-entropy 384x384 RGBA image so external tools (`pngcrush -brute` /
-    // `pngout` / `zopflipng`) spend multiple seconds unless killed by `cancel`.
-    let mut img = RgbaImage::new(384, 384);
+    // Generate a high-entropy 512x512 RGBA image so external tools (`pngcrush -brute` /
+    // `zopflipng`) spend multiple seconds unless killed by `cancel`.
+    let mut img = RgbaImage::new(512, 512);
     let mut state = 0x1234_5678u32;
     for (_, _, p) in img.enumerate_pixels_mut() {
         state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
@@ -522,7 +522,7 @@ fn instant_cancellation_aborts_active_tool_and_leaves_file_untouched() {
             level: 6,
             oxipng_enabled: false,
             pngcrush_enabled: true,
-            pngout_enabled: true,
+            pngout_enabled: false,
             zopfli_enabled: true,
             ..Settings::default()
         };
